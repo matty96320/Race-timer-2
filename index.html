@@ -55,11 +55,51 @@
 </head>
 <body class="bg-gray-100 min-h-screen p-4 sm:p-8">
 
-  <!-- Firebase SDKs -->
+  <!-- Header -->
+  <header class="header-bg text-white p-6 rounded-lg shadow-md mb-8">
+    <h1 class="text-3xl font-bold">Enduro Race Timer</h1>
+    <p class="mt-2 text-lg">Live timing and results for Enduro races</p>
+  </header>
+
+  <main class="container mx-auto space-y-8">
+    <!-- Rider Input Card -->
+    <section class="card">
+      <h2 class="text-2xl font-semibold mb-4">Add Rider</h2>
+      <form id="rider-form" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <input id="rider-number" type="text" placeholder="Rider Number" class="p-3 border rounded-lg">
+        <input id="rider-name" type="text" placeholder="Rider Name" class="p-3 border rounded-lg">
+        <button type="submit" class="button bg-indigo-600 text-white p-3 rounded-lg">Add Rider</button>
+      </form>
+    </section>
+
+    <!-- Results Table -->
+    <section class="card">
+      <h2 class="text-2xl font-semibold mb-4">Results</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full">
+          <thead>
+            <tr>
+              <th>Number</th>
+              <th>Name</th>
+              <th>Stage 1</th>
+              <th>Stage 2</th>
+              <th>Stage 3</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="results-table">
+            <!-- Riders will appear here -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Firebase SDKs + Your App Script -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
     // --- Firebase Config (✅ your project) ---
     const firebaseConfig = {
@@ -77,12 +117,59 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
-    // --- The rest of your code (unchanged) ---
-    // 🔽 keep everything else exactly as you had it here 🔽
-  </script>
+    // --- Auth (sign in anonymously) ---
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        signInAnonymously(auth)
+          .catch(err => console.error("Auth error:", err));
+      }
+    });
 
-  <!-- ✅ Your UI content goes here (header, forms, tables, etc.) -->
-  <!-- (Paste all the HTML body you already had — I didn’t change that part) -->
+    // --- Firestore references ---
+    const ridersRef = collection(db, "riders");
+
+    // --- Add Rider ---
+    const riderForm = document.getElementById("rider-form");
+    riderForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const number = document.getElementById("rider-number").value.trim();
+      const name = document.getElementById("rider-name").value.trim();
+      if (!number || !name) return;
+
+      try {
+        await setDoc(doc(ridersRef, number), {
+          number,
+          name,
+          stage1: null,
+          stage2: null,
+          stage3: null,
+          total: null
+        });
+        riderForm.reset();
+      } catch (err) {
+        console.error("Error adding rider:", err);
+      }
+    });
+
+    // --- Listen for updates ---
+    const resultsTable = document.getElementById("results-table");
+    onSnapshot(ridersRef, snapshot => {
+      resultsTable.innerHTML = "";
+      snapshot.forEach(docSnap => {
+        const rider = docSnap.data();
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${rider.number}</td>
+          <td>${rider.name}</td>
+          <td>${rider.stage1 ?? "-"}</td>
+          <td>${rider.stage2 ?? "-"}</td>
+          <td>${rider.stage3 ?? "-"}</td>
+          <td>${rider.total ?? "-"}</td>
+        `;
+        resultsTable.appendChild(row);
+      });
+    });
+  </script>
 
 </body>
 </html>
