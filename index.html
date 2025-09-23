@@ -551,64 +551,6 @@
             document.body.removeChild(link);
         };
         
-        // --- Robust App Initialization ---
-        const initializeAppAndAuth = async () => {
-            // Wait for Firebase config to be available
-            const waitForConfig = () => new Promise(resolve => {
-                const interval = setInterval(() => {
-                    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                        clearInterval(interval);
-                        resolve();
-                    }
-                }, 100);
-            });
-
-            await waitForConfig();
-            
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'enduro-timer-default';
-const firebaseConfig = {
-  apiKey: "AIzaSyAuHJx2kadtgFpdJwc4h5XMSrxf1zIg8rA",
-  authDomain: "race-timer-2.firebaseapp.com",
-  projectId: "race-timer-2",
-  storageBucket: "race-timer-2.firebasestorage.app",
-  messagingSenderId: "661477053949",
-  appId: "1:661477053949:web:80c9eef457c74255fbf594"
-};
-            
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                } else {
-                    try {
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (error) {
-                        console.error("Authentication failed:", error);
-                        const userIdDisplay = document.getElementById('userIdDisplay');
-                        if(userIdDisplay) userIdDisplay.textContent = 'User ID: Auth Failed!';
-                    }
-                }
-                
-                if (auth.currentUser) {
-                    userId = auth.currentUser.uid;
-                    const userIdDisplay = document.getElementById('userIdDisplay');
-                    const appIdDisplay = document.getElementById('appIdDisplay');
-                    if (userIdDisplay) userIdDisplay.textContent = `User ID: ${auth.currentUser.isAnonymous ? '(Anon) ' : ''}${userId}`;
-                    if (appIdDisplay) appIdDisplay.textContent = `App ID: ${appId}`;
-                }
-                
-                authReady = true;
-            });
-        };
-
-
         window.addEventListener('DOMContentLoaded', () => {
             // Assign DOM elements
             raceIdInput = document.getElementById('raceIdInput');
@@ -635,6 +577,63 @@ const firebaseConfig = {
             
             stageCountInput.value = 6;
             
+            // --- Firebase Initialization ---
+            // This setup allows the app to work both locally (with pasted config) 
+            // and in an environment where config is provided globally.
+
+            // ===================================================================
+            // PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE FOR LOCAL TESTING
+            // ===================================================================
+    const firebaseConfig = {
+  apiKey: "AIzaSyAuHJx2kadtgFpdJwc4h5XMSrxf1zIg8rA",
+  authDomain: "race-timer-2.firebaseapp.com",
+  projectId: "race-timer-2",
+  storageBucket: "race-timer-2.firebasestorage.app",
+  messagingSenderId: "661477053949",
+  appId: "1:661477053949:web:80c9eef457c74255fbf594"
+};
+            // ===================================================================
+
+            const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config !== '{}')
+                ? JSON.parse(__firebase_config)
+                : manualFirebaseConfig;
+                
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'enduro-timer-default';
+
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                    } else {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    }
+                    
+                    if (auth.currentUser) {
+                        userId = auth.currentUser.uid;
+                        const userIdDisplay = document.getElementById('userIdDisplay');
+                        const appIdDisplay = document.getElementById('appIdDisplay');
+                        if (userIdDisplay) userIdDisplay.textContent = `User ID: ${auth.currentUser.isAnonymous ? '(Anon) ' : ''}${userId}`;
+                        if (appIdDisplay) appIdDisplay.textContent = `App ID: ${appId}`;
+                    }
+                    
+                    authReady = true;
+                });
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                const userIdDisplay = document.getElementById('userIdDisplay');
+                if(userIdDisplay) userIdDisplay.textContent = 'Firebase connection failed. Check config.';
+                showMessage('Firebase connection failed. Please check your configuration details.', true);
+            }
+            
             // Add event listeners for UI elements
             loadRaceBtn.addEventListener('click', loadRace);
             newRaceBtn.addEventListener('click', createNewRace);
@@ -643,9 +642,6 @@ const firebaseConfig = {
             exportCsvBtn.addEventListener('click', exportResultsToCsv);
             startTimingStationBtn.addEventListener('click', startTimingForStage);
             switchStageBtn.addEventListener('click', switchTimingStage);
-
-            // Initialize the app
-            initializeAppAndAuth();
         });
     </script>
 
