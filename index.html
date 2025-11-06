@@ -1998,4 +1998,10 @@ Change Number of Stages
 </div>
 </div>
 </body>
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('timer-sw.js')
+      .then(() => console.log('Timer Service Worker Registered'))
+      .catch(err => console.log('Service Worker registration failed:', err));
+  }
 </html>
